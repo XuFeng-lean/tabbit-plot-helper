@@ -1,4 +1,3 @@
-import { chat_metadata, saveMetadata, chat } from "../../../../../script.js";
 export class OutlineGenerator {
   constructor() {
     this.outlines = [];
@@ -6,37 +5,33 @@ export class OutlineGenerator {
   }
 
   loadFromMetadata() {
-    if (chat_metadata.tabbit_outlines) {
-      this.outlines = chat_metadata.tabbit_outlines;
+    // 强行从酒馆全局变量读取元数据
+    if (window.chat_metadata && window.chat_metadata.tabbit_outlines) {
+      this.outlines = window.chat_metadata.tabbit_outlines;
     }
   }
 
   saveToMetadata() {
-    chat_metadata.tabbit_outlines = this.outlines;
-    saveMetadata();
+    if (!window.chat_metadata) window.chat_metadata = {};
+    window.chat_metadata.tabbit_outlines = this.outlines;
+    // 调用酒馆全局保存方法
+    if (typeof window.saveMetadata === 'function') {
+      window.saveMetadata();
+    }
   }
 
   async generate() {
-    // 获取聊天历史
     const chatHistory = this.getChatHistory();
-    
-    // 构建提示词
     const prompt = this.buildPrompt(chatHistory);
-    
-    // 调用 AI 生成
     const response = await this.callAI(prompt);
-    
-    // 解析响应
     const outline = this.parseResponse(response);
-    
-    // 保存大纲
     this.addOutline(outline);
-    
     return outline;
   }
 
   getChatHistory() {
-    const messages = chat.slice(-20); // 获取最近20条消息
+    // 使用 window.chat 获取最近对话
+    const messages = (window.chat || []).slice(-20);
     return messages.map(msg => ({
       role: msg.is_user ? 'user' : 'assistant',
       content: msg.mes
@@ -61,9 +56,12 @@ ${historyText}
   }
 
   async callAI(prompt) {
-    // 使用 SillyTavern 的 AI 生成功能
-    const response = await generateQuietPrompt(prompt, false, false);
-    return response;
+    // 兼容多种酒馆版本获取 AI 接口
+    const generate = window.generateQuietPrompt || (window.getContext && window.getContext().generateQuietPrompt);
+    if (typeof generate !== 'function') {
+      throw new Error("找不到酒馆的AI生成接口，请确保已连接模型！");
+    }
+    return await generate(prompt, false, false);
   }
 
   parseResponse(response) {
@@ -77,11 +75,11 @@ ${historyText}
   }
 
   extractTitle(content) {
-    // 尝试从内容中提取标题
     const lines = content.split('\n');
     for (const line of lines) {
-      if (line.trim().length > 0 && line.trim().length < 50) {
-        return line.trim().replace(/^#+\s*/, '');
+      const trimmed = line.trim();
+      if (trimmed.length > 0 && trimmed.length < 50) {
+        return trimmed.replace(/^#+\s*/, '');
       }
     }
     return '大纲 ' + new Date().toLocaleString();
@@ -92,23 +90,12 @@ ${historyText}
     this.saveToMetadata();
   }
 
-  getOutlines() {
-    return this.outlines;
-  }
-
-  getOutlineById(id) {
-    return this.outlines.find(o => o.id === id);
-  }
-
-  getActiveOutline() {
-    return this.outlines.find(o => o.active);
-  }
+  getOutlines() { return this.outlines; }
+  getOutlineById(id) { return this.outlines.find(o => o.id === id); }
+  getActiveOutline() { return this.outlines.find(o => o.active); }
 
   activateOutline(id) {
-    // 取消所有激活状态
     this.outlines.forEach(o => o.active = false);
-    
-    // 激活指定大纲
     const outline = this.getOutlineById(id);
     if (outline) {
       outline.active = true;
@@ -123,6 +110,12 @@ ${historyText}
       this.saveToMetadata();
     }
   }
+
+  deleteOutline(id) {
+    this.outlines = this.outlines.filter(o => o.id !== id);
+    this.saveToMetadata();
+  }
+}
 
   deleteOutline(id) {
     this.outlines = this.outlines.filter(o => o.id !== id);
