@@ -343,3 +343,53 @@
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ============ 第二批：结果卡片 ============ */
+.tabbit-result-card {
+  padding: 14px;
+  margin: 12px 0;
+  border: 1px solid var(--SmartThemeBorderColor, #333);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  line-height: 1.6;
+}
+
+.tabbit-result-card h4 {
+  margin: 0 0 10px 0;
+  font-size: clamp(15px, 4vw, 17px);
+  color: var(--SmartThemeQuoteColor, #4ec9b0);
+}
+
+.tabbit-result-card p {
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.tabbit-result-card ul {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+
+.tabbit-result-card details {
+  margin: 10px 0;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.tabbit-result-card summary {
+  cursor: pointer;
+  min-height: 32px;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .tabbit-result-card {
+    padding: 12px;
+    margin: 10px 0;
+  }
+
+  .tabbit-result-card p {
+    font-size: 13px;
+  }
+}
