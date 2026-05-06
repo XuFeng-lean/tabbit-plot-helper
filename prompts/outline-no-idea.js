@@ -1,4 +1,3 @@
-import { chat, chat_metadata, saveMetadata, generateQuietPrompt } from "../../../../../script.js";
 export function buildOutlineNoIdeaPrompt({ engine, context, settings }) {
   return [
     getRoleplayPrefix(settings),
