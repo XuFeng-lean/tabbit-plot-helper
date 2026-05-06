@@ -18,7 +18,7 @@
 
 ## 📦 安装
 
-1. 复制本仓库链接：`https://github.com/YOUR_USERNAME/tabbit-plot-helper`
+1. 复制本仓库链接：`https://github.com/XuFeng-lean/tabbit-plot-helper`
 2. 打开 SillyTavern → 扩展菜单 → Install extension
 3. 粘贴链接，点击安装
 4. 在扩展菜单顶部找到「剧情辅助器」按钮
