@@ -1,4 +1,3 @@
-import { chat, chat_metadata, saveMetadata, generateQuietPrompt } from "../../../../../script.js";
 export async function buildPlotContext(ctx, settings, chatMetadata) {
   const result = {
     character_name: "",
