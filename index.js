@@ -167,8 +167,8 @@ function openMainPopup() {
       };
       drawerInstance = new DrawerUI(modules);
     } catch (error) {
-      console.error("[剧情辅助器] 初始化失败:", error);
-      alert("插件初始化失败，请检查控制台报错。");
+      // 手机端专用：直接把详细的红字报错和错误定位弹出来
+      alert("⚠️ 详细报错：\n" + error.name + ": " + error.message + "\n\n堆栈定位：\n" + (error.stack ? error.stack.substring(0, 300) : "无堆栈"));
       return;
     }
   }
