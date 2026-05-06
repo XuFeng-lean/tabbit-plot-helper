@@ -1,5 +1,5 @@
 // ================================
-// 剧情辅助器 · 最终稳定入口版 index.js
+// 剧情辅助器 · 完整功能整合版 index.js
 // 手机端：魔法棒【短按原功能 / 长按剧情辅助器】
 // 桌面端：扩展菜单入口
 // ================================
@@ -7,7 +7,16 @@
 import { extension_settings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
 
+// === 核心模块引入 ===
+// 注意：如果您的文件不在 modules 文件夹下，请去掉路径中的 modules/
+import { DrawerUI } from './modules/drawer-ui.js';
+import { OutlineGenerator } from './modules/outline-generator.js';
+import { OptionGenerator } from './modules/option-generator.js';
+import { WorldVariableExtractor } from './modules/world-variable-extractor.js';
+import { PresetManager } from './modules/preset-manager.js';
+
 const EXT_ID = "tabbit-plot-helper";
+let drawerInstance = null; // 用于保存 UI 实例
 
 /**
  * ================================
@@ -19,12 +28,12 @@ jQuery(() => {
   injectDesktopExtensionMenuButton();
   setupMobileMagicWandLongPress();
 
-  console.log("[剧情辅助器] 已加载（长按魔法棒入口模式）");
+  console.log("[剧情辅助器] 完整版已加载（长按魔法棒/扩展菜单入口）");
 });
 
 /**
  * ================================
- * 初始化设置（占位，防止 undefined）
+ * 初始化设置
  * ================================
  */
 function initSettings() {
@@ -61,8 +70,6 @@ function injectDesktopExtensionMenuButton() {
  * ================================
  * 手机端：魔法棒长按逻辑
  * ================================
- * 短按：酒馆原功能
- * 长按（>= 500ms）：剧情辅助器
  */
 function setupMobileMagicWandLongPress() {
   if (window.__tabbitPlotMagicWandInstalled) return;
@@ -81,12 +88,10 @@ function setupMobileMagicWandLongPress() {
     if (wand.dataset.tabbitPlotBound === "true") return;
     wand.dataset.tabbitPlotBound = "true";
 
-    // ===== 触摸开始 =====
     wand.addEventListener(
       "touchstart",
       () => {
         longPressTriggered = false;
-
         pressTimer = setTimeout(() => {
           longPressTriggered = true;
           openMainPopup();
@@ -95,13 +100,10 @@ function setupMobileMagicWandLongPress() {
       { passive: true }
     );
 
-    // ===== 触摸结束 =====
     wand.addEventListener(
       "touchend",
       (e) => {
         clearTimeout(pressTimer);
-
-        // 如果已经触发长按，阻止后续 click
         if (longPressTriggered) {
           e.preventDefault();
           e.stopPropagation();
@@ -111,15 +113,11 @@ function setupMobileMagicWandLongPress() {
       true
     );
 
-    // ===== 触摸取消（滑走 / 中断）=====
     wand.addEventListener("touchcancel", () => {
       clearTimeout(pressTimer);
     });
-
-    console.log("[剧情辅助器] 魔法棒已绑定：短按原功能 / 长按剧情辅助器");
   };
 
-  // 多次尝试，适配酒馆异步渲染
   tryBind();
   setTimeout(tryBind, 600);
   setTimeout(tryBind, 1500);
@@ -130,20 +128,10 @@ function setupMobileMagicWandLongPress() {
   });
 }
 
-/**
- * ================================
- * 判断是否手机端
- * ================================
- */
 function isMobileViewport() {
   return window.innerWidth <= 768;
 }
 
-/**
- * ================================
- * 查找魔法棒按钮（多重兜底）
- * ================================
- */
 function findMagicWandButton() {
   const selectors = [
     "#extensionsMenuButton",
@@ -158,30 +146,33 @@ function findMagicWandButton() {
     if (!el) continue;
     return el.closest("button, div") || el;
   }
-
-  // 兜底：扫描底部区域
-  const all = Array.from(document.querySelectorAll("button, div, i"));
-  const h = window.innerHeight;
-
-  for (const el of all) {
-    const r = el.getBoundingClientRect();
-    if (r.top < h * 0.6) continue;
-
-    const cls = String(el.className || "").toLowerCase();
-    if (cls.includes("wand") || cls.includes("magic")) {
-      return el.closest("button, div") || el;
-    }
-  }
-
   return null;
 }
 
 /**
  * ================================
- * 主弹窗入口（当前为验证版）
- * ✅ 你确认稳定后，我可以帮你无缝接回完整 UI
+ * 主功能入口：初始化并打开抽屉面板
  * ================================
  */
 function openMainPopup() {
-  alert("✅ 剧情辅助器已成功打开（入口稳定版）");
+  // 只有在第一次点击时才初始化所有模块
+  if (!drawerInstance) {
+    console.log("[剧情辅助器] 正在初始化 UI 组件...");
+    try {
+      const modules = {
+        outlineGenerator: new OutlineGenerator(),
+        optionGenerator: new OptionGenerator(),
+        worldVariableExtractor: new WorldVariableExtractor(),
+        presetManager: new PresetManager()
+      };
+      drawerInstance = new DrawerUI(modules);
+    } catch (error) {
+      console.error("[剧情辅助器] 初始化失败:", error);
+      alert("插件初始化失败，请检查控制台报错。");
+      return;
+    }
+  }
+
+  // 展开抽屉
+  drawerInstance.toggle(true);
 }
