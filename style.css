@@ -1,0 +1,345 @@
+/* ============ 入口按钮 ============ */
+.tabbit-plot-entry-btn {
+  cursor: pointer;
+  user-select: none;
+}
+.tabbit-plot-entry-btn:hover {
+  background: var(--SmartThemeQuoteColor, rgba(0, 150, 200, 0.1));
+}
+
+/* ============ 弹窗外层 ============ */
+.tabbit-plot-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tabbit-popup-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* ============ 弹窗容器：响应式核心 ============ */
+.tabbit-popup-container {
+  position: relative;
+  background: var(--SmartThemeBlurTintColor, #1a1a2e);
+  color: var(--SmartThemeBodyColor, #e0e0e0);
+  border: 1px solid var(--SmartThemeBorderColor, #444);
+  border-radius: 12px;
+  width: min(92vw, 720px);
+  height: min(85vh, 800px);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+/* 手机端全屏 */
+@media (max-width: 600px) {
+  .tabbit-popup-container {
+    width: 100vw;
+    height: 100dvh;       /* 动态视口高度，避免被键盘顶起 */
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+}
+
+/* ============ 头部 ============ */
+.tabbit-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+  flex-shrink: 0;
+}
+.tabbit-popup-header h3 {
+  margin: 0;
+  font-size: clamp(16px, 4vw, 18px);
+}
+.tabbit-close-btn {
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.tabbit-close-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ============ Tab 导航 ============ */
+.tabbit-tab-nav {
+  display: flex;
+  border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+  flex-shrink: 0;
+}
+.tabbit-tab-btn {
+  flex: 1;
+  min-height: 48px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: clamp(13px, 3.5vw, 14px);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.tabbit-tab-btn.active {
+  border-bottom-color: var(--SmartThemeQuoteColor, #4ec9b0);
+  color: var(--SmartThemeQuoteColor, #4ec9b0);
+}
+@media (hover: hover) {
+  .tabbit-tab-btn:hover { background: rgba(255, 255, 255, 0.05); }
+}
+
+/* 手机端：Tab 移到底部 */
+@media (max-width: 600px) {
+  .tabbit-popup-container {
+    flex-direction: column;
+  }
+  .tabbit-tab-nav {
+    order: 2;
+    border-top: 1px solid var(--SmartThemeBorderColor, #333);
+    border-bottom: none;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabbit-tab-content {
+    order: 1;
+  }
+  .tabbit-tab-btn span {
+    font-size: 11px;
+  }
+  .tabbit-tab-btn {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+  }
+}
+
+/* ============ 内容区 ============ */
+.tabbit-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tabbit-tab-pane {
+  display: none;
+  padding: 16px;
+}
+.tabbit-tab-pane.active {
+  display: block;
+}
+
+/* ============ 通用区块 ============ */
+.tabbit-section h4 {
+  margin: 0 0 12px 0;
+  font-size: clamp(14px, 4vw, 16px);
+}
+
+/* ============ 模式选择卡片 ============ */
+.tabbit-mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tabbit-mode-btn {
+  min-height: 70px;
+  background: var(--SmartThemeBlurTintColor, #2a2a3e);
+  border: 1px solid var(--SmartThemeBorderColor, #444);
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s;
+}
+.tabbit-mode-btn strong {
+  font-size: 14px;
+}
+.tabbit-mode-btn small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.tabbit-mode-btn.active {
+  border-color: var(--SmartThemeQuoteColor, #4ec9b0);
+  background: rgba(78, 201, 176, 0.1);
+}
+
+/* ============ 表单元素：触摸友好 ============ */
+.tabbit-textarea,
+.tabbit-input,
+.tabbit-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  background: var(--black50a, rgba(0, 0, 0, 0.3));
+  border: 1px solid var(--SmartThemeBorderColor, #444);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.tabbit-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+.tabbit-textarea:focus,
+.tabbit-input:focus,
+.tabbit-select:focus {
+  outline: none;
+  border-color: var(--SmartThemeQuoteColor, #4ec9b0);
+}
+
+.tabbit-label {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.tabbit-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  cursor: pointer;
+  margin: 8px 0;
+}
+.tabbit-checkbox input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.tabbit-range {
+  width: 100%;
+  margin: 8px 0;
+}
+
+.tabbit-hint {
+  font-size: 12px;
+  opacity: 0.65;
+  margin: 4px 0 12px 0;
+  line-height: 1.5;
+  padding-left: 26px;
+}
+
+/* ============ 按钮 ============ */
+.tabbit-primary-btn,
+.tabbit-secondary-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  margin: 12px 0;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+.tabbit-primary-btn {
+  background: var(--SmartThemeQuoteColor, #4ec9b0);
+  color: white;
+}
+.tabbit-secondary-btn {
+  background: transparent;
+  border: 1px solid var(--SmartThemeBorderColor, #555);
+  color: inherit;
+}
+.tabbit-primary-btn:active { transform: scale(0.98); }
+.tabbit-secondary-btn:active { background: rgba(255, 255, 255, 0.05); }
+@media (hover: hover) {
+  .tabbit-primary-btn:hover { filter: brightness(1.1); }
+  .tabbit-secondary-btn:hover { background: rgba(255, 255, 255, 0.05); }
+}
+
+/* ============ 信息框 ============ */
+.tabbit-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(78, 201, 176, 0.08);
+  border-left: 3px solid var(--SmartThemeQuoteColor, #4ec9b0);
+  border-radius: 4px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* ============ 折叠区块 ============ */
+.tabbit-collapse {
+  margin-bottom: 8px;
+  border: 1px solid var(--SmartThemeBorderColor, #333);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tabbit-collapse summary {
+  padding: 12px 16px;
+  background: var(--SmartThemeBlurTintColor, #2a2a3e);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  user-select: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.tabbit-collapse[open] summary {
+  border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+}
+.tabbit-collapse-body {
+  padding: 12px 16px;
+}
+
+/* ============ 结果区 ============ */
+.tabbit-result-area {
+  margin-top: 16px;
+}
+
+/* ============ Toast ============ */
+.tabbit-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 10000;
+  opacity: 0;
+  transition: all 0.3s;
+  max-width: 90vw;
+  text-align: center;
+}
+.tabbit-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
