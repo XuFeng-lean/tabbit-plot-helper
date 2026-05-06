@@ -1,3 +1,4 @@
+import { chat_metadata, saveMetadata, chat } from "../../../../../script.js";
 export class OutlineGenerator {
   constructor() {
     this.outlines = [];
