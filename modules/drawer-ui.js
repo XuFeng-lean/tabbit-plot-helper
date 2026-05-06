@@ -115,68 +115,73 @@ export class DrawerUI {
     }
   }
 
-  renderOutlineTab() {
-    const container = this.drawer.find('#tabbit-tab-outline');
-    const outlines = this.modules.outlineGenerator.getOutlines();
+  renderOptionsTab() {
+    const container = this.drawer.find('#tabbit-tab-options');
+    const options = this.modules.optionGenerator.getOptions();
     
+    // 关键：不再检查是否有激活大纲，按钮始终可用
     container.html(`
       <div class="tabbit-action-bar">
-        <button class="tabbit-btn tabbit-btn-primary" id="generate-outline">
+        <button class="tabbit-btn tabbit-btn-primary" id="generate-options">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
-          生成大纲
+          生成/刷新选项
         </button>
       </div>
-      
-      <div id="outline-list"></div>
+      <div id="options-list"></div>
     `);
 
-    // 渲染大纲列表
-    const listContainer = container.find('#outline-list');
+    const listContainer = container.find('#options-list');
     
-    if (outlines.length === 0) {
-      listContainer.html(`
-        <div class="tabbit-empty-state">
-          <i class="fa-solid fa-list"></i>
-          <p>还没有大纲，点击上方按钮生成</p>
-        </div>
-      `);
+    if (options.length === 0) {
+      listContainer.html(`<div class="tabbit-empty-state"><p>还没有选项，点击上方按钮生成</p></div>`);
     } else {
-      outlines.forEach(outline => {
-        const item = $(`
-          <div class="tabbit-outline-item ${outline.active ? 'active' : ''}" data-id="${outline.id}">
-            <div class="tabbit-outline-header">
-              <div class="tabbit-outline-title">${outline.title || '未命名大纲'}</div>
-              <div class="tabbit-outline-actions">
-                ${!outline.active ? '<button class="tabbit-btn-icon activate-outline" title="激活"><i class="fa-solid fa-check"></i></button>' : ''}
-                <button class="tabbit-btn-icon edit-outline" title="编辑"><i class="fa-solid fa-edit"></i></button>
-                <button class="tabbit-btn-icon delete-outline" title="删除"><i class="fa-solid fa-trash"></i></button>
+      // 这里的分类定义增加第 5 种：内在冲突
+      const categories = {
+        push: { title: '推进主线', icon: 'fa-arrow-right', items: [] },
+        deepen: { title: '关系演变', icon: 'fa-heart', items: [] },
+        turn: { title: '机会意外', icon: 'fa-random', items: [] },
+        foreshadow: { title: '暗流涌动', icon: 'fa-eye', items: [] },
+        conflict: { title: '内在冲突', icon: 'fa-brain', items: [] }
+      };
+
+      options.forEach(opt => {
+        if (categories[opt.type]) categories[opt.type].items.push(opt);
+      });
+
+      // 渲染逻辑保持不变... (遍历 categories 并 append 到 listContainer)
+      Object.entries(categories).forEach(([type, cat]) => {
+        if (cat.items.length > 0) {
+          const catDiv = $(`
+            <div class="tabbit-option-category">
+              <div class="tabbit-option-category-header"><i class="fa-solid ${cat.icon}"></i><span>${cat.title}</span></div>
+              <div class="tabbit-option-list"></div>
+            </div>
+          `);
+          cat.items.forEach(opt => {
+            catDiv.find('.tabbit-option-list').append(`
+              <div class="tabbit-option-item impact-${opt.impact}" data-id="${opt.id}">
+                <div class="tabbit-option-content">${opt.content}</div>
+                <button class="tabbit-btn tabbit-btn-primary use-option">使用</button>
               </div>
-            </div>
-            <div class="tabbit-outline-content">${outline.content}</div>
-            <div class="tabbit-outline-meta">
-              <span><i class="fa-solid fa-clock"></i> ${new Date(outline.timestamp).toLocaleString()}</span>
-            </div>
-          </div>
-        `);
-        
-        listContainer.append(item);
+            `);
+          });
+          listContainer.append(catDiv);
+        }
       });
     }
 
-    // 绑定事件
-    container.find('#generate-outline').on('click', () => this.handleGenerateOutline());
-    container.find('.activate-outline').on('click', (e) => {
-      const id = $(e.currentTarget).closest('.tabbit-outline-item').data('id');
-      this.handleActivateOutline(id);
+    // 绑定事件：点击生成时传入 true 以强制清除缓存
+    container.find('#generate-options').on('click', async () => {
+      const btn = container.find('#generate-options');
+      btn.prop('disabled', true).text('生成中...');
+      try {
+        await this.modules.optionGenerator.generate(true); // 传入 true 表示强制重新生成
+        this.renderOptionsTab();
+      } finally {
+        btn.prop('disabled', false).text('生成/刷新选项');
+      }
     });
-    container.find('.edit-outline').on('click', (e) => {
-      const id = $(e.currentTarget).closest('.tabbit-outline-item').data('id');
-      this.handleEditOutline(id);
-    });
-    container.find('.delete-outline').on('click', (e) => {
-      const id = $(e.currentTarget).closest('.tabbit-outline-item').data('id');
-      this.handleDeleteOutline(id);
-    });
+    // 使用选项事件绑定...
   }
 
   renderOptionsTab() {
