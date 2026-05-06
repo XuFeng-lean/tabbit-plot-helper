@@ -1,15 +1,13 @@
 {
-  "display_name": "剧情辅助器",
-  "loading_order": 15,
+  "display_name": "Tabbit Plot",
+  "loading_order": 100,
   "requires": [],
   "optional": [],
-  "dependencies": [],
-  "version": "1.0.0",
-  "author": "Tabbit User",
-  "homePage": "https://github.com/XuFeng-lean/tabbit-plot-helper",
-  "icon": "icon.png",
   "js": "index.js",
-  "css": "style.css",
+  "css": "styles.css",
+  "author": "Your Name",
+  "version": "1.0.0",
+  "homePage": "https://github.com/yourusername/tabbit-plot",
   "auto_update": true,
   "i18n": {}
 }
