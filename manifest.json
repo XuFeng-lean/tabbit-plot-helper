@@ -4,7 +4,7 @@
   "requires": [],
   "optional": [],
   "js": "index.js",
-  "css": "styles.css",
+  "css": "style.css", 
   "author": "XuFeng-lean",
   "version": "1.0.0",
   "homePage": "https://github.com/XuFeng-lean/tabbit-plot-helper",
