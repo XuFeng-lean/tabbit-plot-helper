@@ -83,11 +83,12 @@ function initSettings() {
 
 function injectExtensionButton() {
   injectDesktopExtensionMenuButton();
-  setupMobileHamburgerMenuInjector();
+  setupMobileMagicWandHijack();
 }
 
 /**
- * 电脑端 / 宽屏端：插入到扩展菜单顶部
+ * 电脑端 / 宽屏端：
+ * 仍然把“剧情辅助器”插入到扩展菜单顶部。
  */
 function injectDesktopExtensionMenuButton() {
   if (document.getElementById("tabbit-plot-btn")) return;
@@ -112,243 +113,205 @@ function injectDesktopExtensionMenuButton() {
 }
 
 /**
- * 手机端：监听“三条杠”菜单的打开。
- * 当菜单出现在页面中时，把“剧情辅助器”插入到菜单内部。
+ * 手机端：
+ * 直接接管底部魔法棒按钮。
+ *
+ * 效果：
+ * - 手机端点击魔法棒：打开剧情辅助器
+ * - 电脑端不影响，仍然使用原本扩展菜单
  */
-function setupMobileHamburgerMenuInjector() {
-  if (window.__tabbitPlotMobileMenuObserverInstalled) return;
-  window.__tabbitPlotMobileMenuObserverInstalled = true;
+function setupMobileMagicWandHijack() {
+  if (window.__tabbitPlotMagicWandHijackInstalled) return;
+  window.__tabbitPlotMagicWandHijackInstalled = true;
 
-  // 先尝试立即注入一次
-  injectIntoMobileHamburgerMenu();
+  tryBindMagicWandButton();
 
-  // 监听 DOM 变化：三条杠菜单通常是点击后动态显示/移动的
+  // 酒馆手机端底部栏有时是延迟渲染的，所以多次重试
+  setTimeout(tryBindMagicWandButton, 500);
+  setTimeout(tryBindMagicWandButton, 1200);
+  setTimeout(tryBindMagicWandButton, 2500);
+
+  // 监听 DOM 变化，防止切换页面 / 刷新局部 UI 后按钮丢失绑定
   const observer = new MutationObserver(() => {
-    injectIntoMobileHamburgerMenu();
+    tryBindMagicWandButton();
   });
 
   observer.observe(document.body, {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["class", "style", "open", "aria-hidden"]
+    attributeFilter: ["class", "style"]
   });
+}
 
-  // 额外监听点击：用户点三条杠后，延迟几次注入，适配动画/异步渲染
-  document.addEventListener(
+/**
+ * 尝试找到魔法棒按钮并绑定点击事件。
+ */
+function tryBindMagicWandButton() {
+  if (!isMobileViewport()) return;
+
+  const wandButton = findMagicWandButton();
+
+  if (!wandButton) return;
+
+  if (wandButton.dataset.tabbitPlotBound === "true") return;
+
+  wandButton.dataset.tabbitPlotBound = "true";
+  wandButton.classList.add("tabbit-plot-magic-wand-bound");
+  wandButton.title = "剧情辅助器";
+
+  /**
+   * 使用捕获阶段拦截点击。
+   * 这样可以优先于酒馆原本的魔法棒菜单触发。
+   */
+  wandButton.addEventListener(
     "click",
-    () => {
-      setTimeout(injectIntoMobileHamburgerMenu, 80);
-      setTimeout(injectIntoMobileHamburgerMenu, 250);
-      setTimeout(injectIntoMobileHamburgerMenu, 600);
+    (event) => {
+      if (!isMobileViewport()) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      openMainPopup();
     },
     true
   );
+
+  /**
+   * 某些手机 WebView 用 touchend 触发按钮，这里也拦截一次。
+   */
+  wandButton.addEventListener(
+    "touchend",
+    (event) => {
+      if (!isMobileViewport()) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      openMainPopup();
+    },
+    true
+  );
+
+  console.log("[剧情辅助器] 已接管手机端魔法棒按钮");
 }
 
 /**
- * 真正执行菜单内注入。
+ * 判断当前是否是手机 / 窄屏。
  */
-function injectIntoMobileHamburgerMenu() {
-  // 已经插入则不重复插入
-  if (document.getElementById("tabbit-plot-mobile-menu-item")) return;
-
-  const menu = findMobileHamburgerMenuContainer();
-
-  if (!menu) return;
-
-  const item = document.createElement("div");
-  item.id = "tabbit-plot-mobile-menu-item";
-  item.className = "tabbit-plot-mobile-menu-item";
-  item.title = "打开剧情辅助器";
-  item.innerHTML = [
-    "<div class='tabbit-plot-mobile-menu-icon'>",
-      "<i class='fa-solid fa-feather-pointed'></i>",
-    "</div>",
-    "<div class='tabbit-plot-mobile-menu-text'>剧情辅助器</div>"
-  ].join("");
-
-  item.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    closePossibleMobileMenu();
-    openMainPopup();
-  });
-
-  // 插入位置：优先放到菜单靠前位置
-  const firstUsableChild = findFirstUsableMenuChild(menu);
-
-  if (firstUsableChild) {
-    menu.insertBefore(item, firstUsableChild);
-  } else {
-    menu.prepend(item);
-  }
+function isMobileViewport() {
+  const width = window.innerWidth || document.documentElement.clientWidth || 9999;
+  return width <= 700;
 }
 
 /**
- * 尝试找到手机端三条杠打开后的菜单容器。
- * 不同中文整合包 / 主题命名不同，所以这里用多重策略。
+ * 尝试定位酒馆底部的魔法棒按钮。
+ *
+ * 不同中文整合包、主题、版本的 DOM 名称可能不同，
+ * 所以这里采用多重选择器 + 图标兜底定位。
  */
-function findMobileHamburgerMenuContainer() {
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-
-  // 手机端优先；如果在 PC 上也找到，不会影响，因为桌面有扩展菜单入口
-  const knownSelectors = [
-    "#left-nav-panel",
-    "#leftNavPanel",
-    "#left-nav-drawer",
-    "#leftNavDrawer",
-    "#mobile_menu",
-    "#mobileMenu",
-    "#hamburgerMenu",
-    "#options_menu",
-    "#optionsMenu",
-    ".drawer-menu",
-    ".drawer-content",
-    ".mobile-menu",
-    ".mobileMenu",
-    ".hamburger-menu",
-    ".hamburgerMenu",
-    ".side-menu",
-    ".sideMenu",
-    ".nav-drawer",
-    ".left-drawer",
-    ".menuDrawer",
-    ".drawer"
+function findMagicWandButton() {
+  const selectors = [
+    "#extensionsMenuButton",
+    "#extensions_menu_button",
+    "#extensions-button",
+    "#extensions_button",
+    "#extensionsButton",
+    "[title='扩展程序']",
+    "[title='Extensions']",
+    "[title='扩展']",
+    ".fa-wand-magic-sparkles",
+    ".fa-magic-wand-sparkles",
+    ".fa-wand-magic",
+    ".fa-magic",
+    ".fa-solid.fa-wand-magic-sparkles",
+    ".fa-solid.fa-magic-wand-sparkles",
+    ".extensionsMenuButton",
+    ".extensions_button"
   ];
 
-  for (const selector of knownSelectors) {
+  for (const selector of selectors) {
     const node = document.querySelector(selector);
-    if (isVisibleMenuContainer(node, viewportWidth, viewportHeight)) {
-      return node;
+    const button = normalizeToClickableButton(node);
+    if (button && isLikelyBottomToolbarButton(button)) {
+      return button;
     }
   }
 
-  // 兜底策略：
-  // 在页面中寻找“可见、靠左、像菜单、包含多个按钮/菜单项”的容器
-  const candidates = Array.from(document.querySelectorAll("div, nav, aside, section"));
+  // 兜底：扫描底部区域中带“魔法棒/扩展”特征的元素
+  const candidates = Array.from(
+    document.querySelectorAll("button, div, span, i, a")
+  );
 
-  const scored = candidates
-    .map((el) => {
-      const rect = el.getBoundingClientRect();
-      const style = window.getComputedStyle(el);
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
 
-      if (!rect || rect.width <= 0 || rect.height <= 0) return null;
-      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return null;
+  for (const el of candidates) {
+    const rect = el.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) continue;
 
-      const isLeftSide = rect.left <= viewportWidth * 0.35;
-      const isMenuSized =
-        rect.width >= 120 &&
-        rect.width <= viewportWidth * 0.95 &&
-        rect.height >= 120 &&
-        rect.height <= viewportHeight * 0.95;
+    // 只看屏幕底部 35% 区域，避免误伤顶部扩展按钮
+    const inBottomArea = rect.top > viewportHeight * 0.65;
 
-      const hasMenuChildren = el.querySelectorAll("button, .menu_button, .list-group-item, .drawer-item, .fa-solid, .fa-regular, i").length >= 3;
+    const className = String(el.className || "").toLowerCase();
+    const title = String(el.getAttribute("title") || "").toLowerCase();
+    const aria = String(el.getAttribute("aria-label") || "").toLowerCase();
+    const text = String(el.textContent || "").toLowerCase();
 
-      const className = String(el.className || "").toLowerCase();
-      const id = String(el.id || "").toLowerCase();
+    const looksLikeMagicWand =
+      className.includes("wand") ||
+      className.includes("magic") ||
+      className.includes("extension") ||
+      title.includes("扩展") ||
+      title.includes("extension") ||
+      aria.includes("扩展") ||
+      aria.includes("extension") ||
+      text.includes("扩展程序");
 
-      const nameLooksLikeMenu =
-        className.includes("menu") ||
-        className.includes("drawer") ||
-        className.includes("nav") ||
-        id.includes("menu") ||
-        id.includes("drawer") ||
-        id.includes("nav");
+    if (!inBottomArea || !looksLikeMagicWand) continue;
 
-      let score = 0;
-      if (isLeftSide) score += 2;
-      if (isMenuSized) score += 2;
-      if (hasMenuChildren) score += 2;
-      if (nameLooksLikeMenu) score += 3;
-      if (style.position === "fixed" || style.position === "absolute") score += 1;
-
-      return {
-        el,
-        score,
-        rect
-      };
-    })
-    .filter(Boolean)
-    .filter((item) => item.score >= 5)
-    .sort((a, b) => b.score - a.score);
-
-  if (scored.length > 0) {
-    return scored[0].el;
+    const button = normalizeToClickableButton(el);
+    if (button && isLikelyBottomToolbarButton(button)) {
+      return button;
+    }
   }
 
   return null;
 }
 
 /**
- * 判断元素是否像一个已经打开的菜单容器。
+ * 如果找到的是 i 图标，则向上寻找真正可点击的父元素。
  */
-function isVisibleMenuContainer(node, viewportWidth, viewportHeight) {
+function normalizeToClickableButton(node) {
+  if (!node) return null;
+
+  const clickable = node.closest(
+    "button, a, .menu_button, .drawer-button, .interactable, div"
+  );
+
+  return clickable || node;
+}
+
+/**
+ * 判断它是否像底部工具栏按钮。
+ */
+function isLikelyBottomToolbarButton(node) {
   if (!node) return false;
 
   const rect = node.getBoundingClientRect();
   const style = window.getComputedStyle(node);
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
 
   if (!rect || rect.width <= 0 || rect.height <= 0) return false;
   if (style.display === "none") return false;
   if (style.visibility === "hidden") return false;
   if (Number(style.opacity) === 0) return false;
 
-  const notTiny = rect.width >= 100 && rect.height >= 80;
-  const notFullChat = rect.width <= viewportWidth * 0.98 && rect.height <= viewportHeight * 0.98;
-  const hasInteractiveChildren = node.querySelectorAll("button, .menu_button, .list-group-item, .drawer-item, i").length >= 2;
+  const inBottomArea = rect.top > viewportHeight * 0.55;
+  const reasonableSize = rect.width >= 20 && rect.height >= 20 && rect.width <= 120 && rect.height <= 120;
 
-  return notTiny && notFullChat && hasInteractiveChildren;
-}
-
-/**
- * 找到菜单中第一个适合插入之前的子元素。
- */
-function findFirstUsableMenuChild(menu) {
-  const children = Array.from(menu.children || []);
-
-  for (const child of children) {
-    if (!child || child.id === "tabbit-plot-mobile-menu-item") continue;
-
-    const rect = child.getBoundingClientRect();
-    const style = window.getComputedStyle(child);
-
-    if (rect.width <= 0 || rect.height <= 0) continue;
-    if (style.display === "none" || style.visibility === "hidden") continue;
-
-    return child;
-  }
-
-  return null;
-}
-
-/**
- * 点击菜单项后，尝试关闭手机端菜单。
- * 如果无法关闭也没关系，弹窗会覆盖在上层。
- */
-function closePossibleMobileMenu() {
-  const closeSelectors = [
-    "#left-nav-drawer-close",
-    "#leftNavDrawerClose",
-    ".drawer-close",
-    ".mobile-menu-close",
-    ".hamburger-menu-close",
-    ".fa-xmark",
-    ".fa-times"
-  ];
-
-  for (const selector of closeSelectors) {
-    const node = document.querySelector(selector);
-    if (node) {
-      const clickable = node.closest("button, div") || node;
-      try {
-        clickable.click();
-        return;
-      } catch (_) {}
-    }
-  }
+  return inBottomArea && reasonableSize;
 }
 
 
