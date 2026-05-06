@@ -82,6 +82,14 @@ function initSettings() {
 }
 
 function injectExtensionButton() {
+  injectDesktopExtensionMenuButton();
+  setupMobileHamburgerMenuInjector();
+}
+
+/**
+ * 电脑端 / 宽屏端：插入到扩展菜单顶部
+ */
+function injectDesktopExtensionMenuButton() {
   if (document.getElementById("tabbit-plot-btn")) return;
 
   const button = document.createElement("div");
@@ -99,9 +107,250 @@ function injectExtensionButton() {
   if (extensionsMenu) {
     extensionsMenu.prepend(button);
   } else {
-    setTimeout(injectExtensionButton, 500);
+    setTimeout(injectDesktopExtensionMenuButton, 500);
   }
 }
+
+/**
+ * 手机端：监听“三条杠”菜单的打开。
+ * 当菜单出现在页面中时，把“剧情辅助器”插入到菜单内部。
+ */
+function setupMobileHamburgerMenuInjector() {
+  if (window.__tabbitPlotMobileMenuObserverInstalled) return;
+  window.__tabbitPlotMobileMenuObserverInstalled = true;
+
+  // 先尝试立即注入一次
+  injectIntoMobileHamburgerMenu();
+
+  // 监听 DOM 变化：三条杠菜单通常是点击后动态显示/移动的
+  const observer = new MutationObserver(() => {
+    injectIntoMobileHamburgerMenu();
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["class", "style", "open", "aria-hidden"]
+  });
+
+  // 额外监听点击：用户点三条杠后，延迟几次注入，适配动画/异步渲染
+  document.addEventListener(
+    "click",
+    () => {
+      setTimeout(injectIntoMobileHamburgerMenu, 80);
+      setTimeout(injectIntoMobileHamburgerMenu, 250);
+      setTimeout(injectIntoMobileHamburgerMenu, 600);
+    },
+    true
+  );
+}
+
+/**
+ * 真正执行菜单内注入。
+ */
+function injectIntoMobileHamburgerMenu() {
+  // 已经插入则不重复插入
+  if (document.getElementById("tabbit-plot-mobile-menu-item")) return;
+
+  const menu = findMobileHamburgerMenuContainer();
+
+  if (!menu) return;
+
+  const item = document.createElement("div");
+  item.id = "tabbit-plot-mobile-menu-item";
+  item.className = "tabbit-plot-mobile-menu-item";
+  item.title = "打开剧情辅助器";
+  item.innerHTML = [
+    "<div class='tabbit-plot-mobile-menu-icon'>",
+      "<i class='fa-solid fa-feather-pointed'></i>",
+    "</div>",
+    "<div class='tabbit-plot-mobile-menu-text'>剧情辅助器</div>"
+  ].join("");
+
+  item.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    closePossibleMobileMenu();
+    openMainPopup();
+  });
+
+  // 插入位置：优先放到菜单靠前位置
+  const firstUsableChild = findFirstUsableMenuChild(menu);
+
+  if (firstUsableChild) {
+    menu.insertBefore(item, firstUsableChild);
+  } else {
+    menu.prepend(item);
+  }
+}
+
+/**
+ * 尝试找到手机端三条杠打开后的菜单容器。
+ * 不同中文整合包 / 主题命名不同，所以这里用多重策略。
+ */
+function findMobileHamburgerMenuContainer() {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  // 手机端优先；如果在 PC 上也找到，不会影响，因为桌面有扩展菜单入口
+  const knownSelectors = [
+    "#left-nav-panel",
+    "#leftNavPanel",
+    "#left-nav-drawer",
+    "#leftNavDrawer",
+    "#mobile_menu",
+    "#mobileMenu",
+    "#hamburgerMenu",
+    "#options_menu",
+    "#optionsMenu",
+    ".drawer-menu",
+    ".drawer-content",
+    ".mobile-menu",
+    ".mobileMenu",
+    ".hamburger-menu",
+    ".hamburgerMenu",
+    ".side-menu",
+    ".sideMenu",
+    ".nav-drawer",
+    ".left-drawer",
+    ".menuDrawer",
+    ".drawer"
+  ];
+
+  for (const selector of knownSelectors) {
+    const node = document.querySelector(selector);
+    if (isVisibleMenuContainer(node, viewportWidth, viewportHeight)) {
+      return node;
+    }
+  }
+
+  // 兜底策略：
+  // 在页面中寻找“可见、靠左、像菜单、包含多个按钮/菜单项”的容器
+  const candidates = Array.from(document.querySelectorAll("div, nav, aside, section"));
+
+  const scored = candidates
+    .map((el) => {
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+
+      if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return null;
+
+      const isLeftSide = rect.left <= viewportWidth * 0.35;
+      const isMenuSized =
+        rect.width >= 120 &&
+        rect.width <= viewportWidth * 0.95 &&
+        rect.height >= 120 &&
+        rect.height <= viewportHeight * 0.95;
+
+      const hasMenuChildren = el.querySelectorAll("button, .menu_button, .list-group-item, .drawer-item, .fa-solid, .fa-regular, i").length >= 3;
+
+      const className = String(el.className || "").toLowerCase();
+      const id = String(el.id || "").toLowerCase();
+
+      const nameLooksLikeMenu =
+        className.includes("menu") ||
+        className.includes("drawer") ||
+        className.includes("nav") ||
+        id.includes("menu") ||
+        id.includes("drawer") ||
+        id.includes("nav");
+
+      let score = 0;
+      if (isLeftSide) score += 2;
+      if (isMenuSized) score += 2;
+      if (hasMenuChildren) score += 2;
+      if (nameLooksLikeMenu) score += 3;
+      if (style.position === "fixed" || style.position === "absolute") score += 1;
+
+      return {
+        el,
+        score,
+        rect
+      };
+    })
+    .filter(Boolean)
+    .filter((item) => item.score >= 5)
+    .sort((a, b) => b.score - a.score);
+
+  if (scored.length > 0) {
+    return scored[0].el;
+  }
+
+  return null;
+}
+
+/**
+ * 判断元素是否像一个已经打开的菜单容器。
+ */
+function isVisibleMenuContainer(node, viewportWidth, viewportHeight) {
+  if (!node) return false;
+
+  const rect = node.getBoundingClientRect();
+  const style = window.getComputedStyle(node);
+
+  if (!rect || rect.width <= 0 || rect.height <= 0) return false;
+  if (style.display === "none") return false;
+  if (style.visibility === "hidden") return false;
+  if (Number(style.opacity) === 0) return false;
+
+  const notTiny = rect.width >= 100 && rect.height >= 80;
+  const notFullChat = rect.width <= viewportWidth * 0.98 && rect.height <= viewportHeight * 0.98;
+  const hasInteractiveChildren = node.querySelectorAll("button, .menu_button, .list-group-item, .drawer-item, i").length >= 2;
+
+  return notTiny && notFullChat && hasInteractiveChildren;
+}
+
+/**
+ * 找到菜单中第一个适合插入之前的子元素。
+ */
+function findFirstUsableMenuChild(menu) {
+  const children = Array.from(menu.children || []);
+
+  for (const child of children) {
+    if (!child || child.id === "tabbit-plot-mobile-menu-item") continue;
+
+    const rect = child.getBoundingClientRect();
+    const style = window.getComputedStyle(child);
+
+    if (rect.width <= 0 || rect.height <= 0) continue;
+    if (style.display === "none" || style.visibility === "hidden") continue;
+
+    return child;
+  }
+
+  return null;
+}
+
+/**
+ * 点击菜单项后，尝试关闭手机端菜单。
+ * 如果无法关闭也没关系，弹窗会覆盖在上层。
+ */
+function closePossibleMobileMenu() {
+  const closeSelectors = [
+    "#left-nav-drawer-close",
+    "#leftNavDrawerClose",
+    ".drawer-close",
+    ".mobile-menu-close",
+    ".hamburger-menu-close",
+    ".fa-xmark",
+    ".fa-times"
+  ];
+
+  for (const selector of closeSelectors) {
+    const node = document.querySelector(selector);
+    if (node) {
+      const clickable = node.closest("button, div") || node;
+      try {
+        clickable.click();
+        return;
+      } catch (_) {}
+    }
+  }
+}
+
 
 function openMainPopup() {
   const existing = document.getElementById("tabbit-plot-popup");
