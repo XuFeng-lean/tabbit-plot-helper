@@ -1,5 +1,5 @@
 {
-  "display_name": "剧情辅助器",
+  "display_name": "Tabbit Plot",
   "loading_order": 100,
   "requires": [],
   "optional": [],
@@ -8,6 +8,5 @@
   "author": "XuFeng-lean",
   "version": "1.0.0",
   "homePage": "https://github.com/XuFeng-lean/tabbit-plot-helper",
-  "auto_update": true,
-  "i18n": {}
+  "auto_update": true
 }
