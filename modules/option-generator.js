@@ -1,3 +1,4 @@
+import { chat_metadata, saveMetadata, chat, generateQuietPrompt } from "../../../../../script.js";
 export class OptionGenerator {
   constructor() {
     this.options = [];
