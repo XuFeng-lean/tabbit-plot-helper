@@ -1,3 +1,4 @@
+import { chat, chat_metadata, saveMetadata, generateQuietPrompt } from "../../../../../script.js";
 export async function callLLM({ prompt, task, settings, context }) {
   if (settings.api && settings.api.enabled) {
     return await callIndependentOpenAI(prompt, settings.api);
