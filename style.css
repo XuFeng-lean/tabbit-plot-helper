@@ -394,60 +394,24 @@
   }
 }
 
-/* ============ 手机端三条杠菜单内入口 ============ */
-.tabbit-plot-mobile-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 10px 14px;
-  margin: 4px 6px;
-  border-radius: 8px;
-  color: var(--SmartThemeBodyColor, inherit);
-  background: rgba(155, 115, 180, 0.08);
-  border: 1px solid rgba(155, 115, 180, 0.18);
-  cursor: pointer;
-  user-select: none;
-  touch-action: manipulation;
-  font-size: 14px;
-  line-height: 1.2;
-  box-sizing: border-box;
-}
+/* ============ 手机端：魔法棒位置改为剧情辅助器入口 ============ */
+@media (max-width: 700px) {
+  .tabbit-plot-magic-wand-bound {
+    color: var(--SmartThemeQuoteColor, #9b73b4) !important;
+    filter: drop-shadow(0 0 4px rgba(155, 115, 180, 0.35));
+  }
 
-.tabbit-plot-mobile-menu-item:active {
-  transform: scale(0.98);
-  background: rgba(155, 115, 180, 0.18);
-}
-
-@media (hover: hover) {
-  .tabbit-plot-mobile-menu-item:hover {
-    background: rgba(155, 115, 180, 0.16);
+  .tabbit-plot-magic-wand-bound:active {
+    transform: scale(0.92);
   }
 }
 
-.tabbit-plot-mobile-menu-icon {
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: rgba(155, 115, 180, 0.15);
-  color: var(--SmartThemeQuoteColor, #9b73b4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 15px;
-}
-
-.tabbit-plot-mobile-menu-text {
-  flex: 1;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* 如果之前加过悬浮按钮或底部栏按钮，这里统一隐藏 */
+/* 如果之前加过悬浮按钮、底部栏按钮、三条杠菜单项，这里统一隐藏 */
 #tabbit-plot-mobile-fab,
 .tabbit-plot-mobile-fab,
 #tabbit-plot-mobile-bottom-btn,
-.tabbit-plot-mobile-bottom-btn {
+.tabbit-plot-mobile-bottom-btn,
+#tabbit-plot-mobile-menu-item,
+.tabbit-plot-mobile-menu-item {
   display: none !important;
 }
