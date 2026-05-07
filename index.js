@@ -117,6 +117,26 @@ function handleMenuButtonClick(e) {
   e.preventDefault();
   e.stopPropagation();
 
+  // ===== 修复 ①：主动关闭魔法棒菜单 =====
+  try {
+    const wandMenus = document.querySelectorAll(
+      "#extensionsMenu, .extensions-menu, " +
+      "#wand-menu, .wand-menu, " +
+      "#mobile-tools-menu, .options-content"
+    );
+    wandMenus.forEach(menu => {
+      // 酒馆常见的关闭方式
+      menu.style.display = "none";
+      menu.classList.remove("shown", "open", "show", "active");
+    });
+
+    // 部分主题用 body 上的 class 控制菜单
+    document.body.classList.remove("wand-open", "menu-open");
+  } catch (err) {
+    console.warn(`[] 关闭魔法棒菜单失败（不影响功能）:`, err);
+  }
+
+  // ===== 打开插件界面 =====
   try {
     if (!drawerUI) {
       drawerUI = new DrawerUI({
@@ -127,45 +147,16 @@ function handleMenuButtonClick(e) {
         saveSettings: saveSettingsDebounced,
       });
     }
-    menuItem.addEventListener("click", (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-
-  // ===== 修复 ①：主动关闭魔法棒菜单 =====
-  try {
-    // 酒馆魔法棒菜单容器，常见 id: extensionsMenu / wand-menu
-    const wandMenus = document.querySelectorAll(
-      "#extensionsMenu, .extensions-menu, #wand-menu, .wand-menu, " +
-      "#mobile-tools-menu, .options-content"
-    );
-    wandMenus.forEach(menu => {
-      // 关闭菜单的两种常见方式：display 隐藏 / 移除 active 类
-      if (menu.style) menu.style.display = "none";
-      menu.classList.remove("open", "show", "active");
-    });
-
-    // 触发点击 body 模拟关闭
-    document.body.click();
-  } catch (err) {
-    console.warn("[剧情辅助器] 关闭魔法棒菜单失败（不影响功能）:", err);
-  }
-
-  // 打开抽屉
-  if (drawerUI) drawerUI.open();
-});
     drawerUI.open();
-
-    // 关闭酒馆原本的扩展菜单弹层
-    const menu = document.getElementById("extensionsMenu");
-    if (menu) {
-      menu.style.display = "";
-      menu.classList.remove("shown");
-    }
   } catch (error) {
-    console.error(`[${EXT_ID}] 打开界面失败:`, error);
-    alert(`[${EXT_DISPLAY_NAME}] 打开失败：\n${error.message}\n\n请把这段错误截图发给开发者。`);
+    console.error(`[] 打开界面失败:`, error);
+    alert(`[] 打开失败：
+
+
+请把这段错误截图发给开发者。`);
   }
 }
+
 
 // ============================================================
 // 启动
