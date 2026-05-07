@@ -26,41 +26,33 @@ let drawerUI = null;
 // ============================================================
 const DEFAULT_SETTINGS = {
   context: {
-    messageMode: "recent20",        // recent20 / recent50 / recent100 / all / custom
-    customRangeStart: 0,
-    customRangeEnd: 50,
-    tagFilter: {
-      enabled: false,
-      tags: ["thinking", "summary", "status", "stage"],
-    },
+    messageMode: "recent20",      // recent20 | recent50 | recent100 | all | custom
+    customRangeStart: 0,          // 自定义区间起始楼层
+    customRangeEnd: 0,            // 自定义区间结束楼层
     includeCharacterCard: true,
     includeUserPersona: true,
     includeWorldInfo: true,
-    selectedWorldInfoEntries: [],
-    extraWorldInfoBookNames: [],
-  },
-  api: {
-    mode: "follow",                 // follow / independent
-    independent: {
-      baseUrl: "",
-      apiKey: "",
-      model: "",
-      temperature: 0.85,
-      maxTokens: 4000,
-    },
-  },
-  preset: {
-    mode: "follow",                 // follow / custom
-    customPresetName: "",
+    extraWorldInfoBookNames: [],  // 用户在设置里勾选的额外世界书
+    disabledEntries: {},          // { bookName: [uid1, uid2, ...] } 用户手动禁用的条目
   },
   advanced: {
     midFakeVictory: false,
     themeImage: false,
   },
-  ui: {
-    inspirationEngines: ["relationship"],
+  api: {
+    mode: "follow",               // follow | independent
+    independent: {
+      url: "",
+      key: "",
+      model: "",
+    },
+  },
+  preset: {
+    mode: "follow",               // follow | custom
+    customPresetName: "",
   },
 };
+
 
 // ============================================================
 // 初始化设置（深合并，保证升级时不丢字段）
