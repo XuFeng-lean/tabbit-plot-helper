@@ -127,6 +127,32 @@ function handleMenuButtonClick(e) {
         saveSettings: saveSettingsDebounced,
       });
     }
+    menuItem.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // ===== 修复 ①：主动关闭魔法棒菜单 =====
+  try {
+    // 酒馆魔法棒菜单容器，常见 id: extensionsMenu / wand-menu
+    const wandMenus = document.querySelectorAll(
+      "#extensionsMenu, .extensions-menu, #wand-menu, .wand-menu, " +
+      "#mobile-tools-menu, .options-content"
+    );
+    wandMenus.forEach(menu => {
+      // 关闭菜单的两种常见方式：display 隐藏 / 移除 active 类
+      if (menu.style) menu.style.display = "none";
+      menu.classList.remove("open", "show", "active");
+    });
+
+    // 触发点击 body 模拟关闭
+    document.body.click();
+  } catch (err) {
+    console.warn("[剧情辅助器] 关闭魔法棒菜单失败（不影响功能）:", err);
+  }
+
+  // 打开抽屉
+  if (drawerUI) drawerUI.open();
+});
     drawerUI.open();
 
     // 关闭酒馆原本的扩展菜单弹层
