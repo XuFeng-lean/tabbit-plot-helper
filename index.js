@@ -1,178 +1,175 @@
-// ================================
-// 剧情辅助器 · 完整功能整合版 index.js
-// 手机端：魔法棒【短按原功能 / 长按剧情辅助器】
-// 桌面端：扩展菜单入口
-// ================================
+// ============================================================
+// 剧情辅助器 · 阶段 1：UI 骨架版
+// ============================================================
+// 入口策略（双端统一）：
+//   魔法棒菜单（extensionsMenu）里加一项「📖 剧情辅助器」
+//   点击后打开抽屉式界面，包含三个 Tab：
+//     - 主线大纲（阶段 2 实现）
+//     - 剧情选项（阶段 3 实现）
+//     - 设置（阶段 4 实现）
+// ============================================================
 
 import { extension_settings } from "../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../script.js";
+import { saveSettingsDebounced, eventSource, event_types } from "../../../../script.js";
 
-// === 核心模块引入 ===
-// 注意：如果您的文件不在 modules 文件夹下，请去掉路径中的 modules/
-import { DrawerUI } from './modules/drawer-ui.js';
-import { OutlineGenerator } from './modules/outline-generator.js';
-import { OptionGenerator } from './modules/option-generator.js';
-import { WorldVariableExtractor } from './modules/world-variable-extractor.js';
-import { PresetManager } from './modules/preset-manager.js';
+import { StateStore } from "./modules/state-store.js";
+import { DrawerUI } from "./modules/drawer-ui.js";
 
 const EXT_ID = "tabbit-plot-helper";
-let drawerInstance = null; // 用于保存 UI 实例
+const EXT_DISPLAY_NAME = "剧情辅助器";
 
-/**
- * ================================
- * 插件初始化
- * ================================
- */
-jQuery(() => {
-  initSettings();
-  injectDesktopExtensionMenuButton();
-  setupMobileMagicWandLongPress();
+let stateStore = null;
+let drawerUI = null;
 
-  console.log("[剧情辅助器] 完整版已加载（长按魔法棒/扩展菜单入口）");
-});
+// ============================================================
+// 默认设置（阶段 1 先放占位，后续阶段会扩充）
+// ============================================================
+const DEFAULT_SETTINGS = {
+  context: {
+    messageMode: "recent20",        // recent20 / recent50 / recent100 / all / custom
+    customRangeStart: 0,
+    customRangeEnd: 50,
+    tagFilter: {
+      enabled: false,
+      tags: ["thinking", "summary", "status", "stage"],
+    },
+    includeCharacterCard: true,
+    includeUserPersona: true,
+    includeWorldInfo: true,
+    selectedWorldInfoEntries: [],
+    extraWorldInfoBookNames: [],
+  },
+  api: {
+    mode: "follow",                 // follow / independent
+    independent: {
+      baseUrl: "",
+      apiKey: "",
+      model: "",
+      temperature: 0.85,
+      maxTokens: 4000,
+    },
+  },
+  preset: {
+    mode: "follow",                 // follow / custom
+    customPresetName: "",
+  },
+  advanced: {
+    midFakeVictory: false,
+    themeImage: false,
+  },
+  ui: {
+    inspirationEngines: ["relationship"],
+  },
+};
 
-/**
- * ================================
- * 初始化设置
- * ================================
- */
+// ============================================================
+// 初始化设置（深合并，保证升级时不丢字段）
+// ============================================================
 function initSettings() {
   if (!extension_settings[EXT_ID]) {
-    extension_settings[EXT_ID] = {};
-    saveSettingsDebounced();
+    extension_settings[EXT_ID] = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  } else {
+    deepMergeDefaults(extension_settings[EXT_ID], DEFAULT_SETTINGS);
   }
+  saveSettingsDebounced();
+  return extension_settings[EXT_ID];
 }
 
-/**
- * ================================
- * 桌面端：扩展菜单入口
- * ================================
- */
-function injectDesktopExtensionMenuButton() {
-  const menu = document.getElementById("extensionsMenu");
-  if (!menu) return;
-
-  if (document.getElementById("tabbit-plot-btn")) return;
-
-  const btn = document.createElement("div");
-  btn.id = "tabbit-plot-btn";
-  btn.className = "list-group-item flex-container flexGap5";
-  btn.innerHTML = `
-    <div class="fa-solid fa-feather-pointed extensionsMenuExtensionButton"></div>
-    <span>剧情辅助器</span>
-  `;
-
-  btn.addEventListener("click", openMainPopup);
-  menu.prepend(btn);
-}
-
-/**
- * ================================
- * 手机端：魔法棒长按逻辑
- * ================================
- */
-function setupMobileMagicWandLongPress() {
-  if (window.__tabbitPlotMagicWandInstalled) return;
-  window.__tabbitPlotMagicWandInstalled = true;
-
-  const LONG_PRESS_MS = 500;
-  let pressTimer = null;
-  let longPressTriggered = false;
-
-  const tryBind = () => {
-    if (!isMobileViewport()) return;
-
-    const wand = findMagicWandButton();
-    if (!wand) return;
-
-    if (wand.dataset.tabbitPlotBound === "true") return;
-    wand.dataset.tabbitPlotBound = "true";
-
-    wand.addEventListener(
-      "touchstart",
-      () => {
-        longPressTriggered = false;
-        pressTimer = setTimeout(() => {
-          longPressTriggered = true;
-          openMainPopup();
-        }, LONG_PRESS_MS);
-      },
-      { passive: true }
-    );
-
-    wand.addEventListener(
-      "touchend",
-      (e) => {
-        clearTimeout(pressTimer);
-        if (longPressTriggered) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        }
-      },
-      true
-    );
-
-    wand.addEventListener("touchcancel", () => {
-      clearTimeout(pressTimer);
-    });
-  };
-
-  tryBind();
-  setTimeout(tryBind, 600);
-  setTimeout(tryBind, 1500);
-
-  new MutationObserver(tryBind).observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-}
-
-function isMobileViewport() {
-  return window.innerWidth <= 768;
-}
-
-function findMagicWandButton() {
-  const selectors = [
-    "#extensionsMenuButton",
-    ".extensionsMenuButton",
-    ".fa-wand-magic-sparkles",
-    ".fa-magic",
-    "[title*='扩展']"
-  ];
-
-  for (const sel of selectors) {
-    const el = document.querySelector(sel);
-    if (!el) continue;
-    return el.closest("button, div") || el;
-  }
-  return null;
-}
-
-/**
- * ================================
- * 主功能入口：初始化并打开抽屉面板
- * ================================
- */
-function openMainPopup() {
-  // 只有在第一次点击时才初始化所有模块
-  if (!drawerInstance) {
-    console.log("[剧情辅助器] 正在初始化 UI 组件...");
-    try {
-      const modules = {
-        outlineGenerator: new OutlineGenerator(),
-        optionGenerator: new OptionGenerator(),
-        worldVariableExtractor: new WorldVariableExtractor(),
-        presetManager: new PresetManager()
-      };
-      drawerInstance = new DrawerUI(modules);
-    } catch (error) {
-      // 手机端专用：直接把详细的红字报错和错误定位弹出来
-      alert("⚠️ 详细报错：\n" + error.name + ": " + error.message + "\n\n堆栈定位：\n" + (error.stack ? error.stack.substring(0, 300) : "无堆栈"));
-      return;
+function deepMergeDefaults(target, defaults) {
+  for (const key of Object.keys(defaults)) {
+    if (target[key] === undefined || target[key] === null) {
+      target[key] = JSON.parse(JSON.stringify(defaults[key]));
+      continue;
+    }
+    if (
+      typeof defaults[key] === "object" &&
+      !Array.isArray(defaults[key]) &&
+      typeof target[key] === "object" &&
+      !Array.isArray(target[key])
+    ) {
+      deepMergeDefaults(target[key], defaults[key]);
     }
   }
-
-  // 展开抽屉
-  drawerInstance.toggle(true);
 }
+
+// ============================================================
+// 注入魔法棒菜单按钮（双端统一入口）
+// ============================================================
+function injectExtensionMenuButton() {
+  if (document.getElementById("tabbit-plot-menu-btn")) return;
+
+  const menu = document.getElementById("extensionsMenu");
+  if (!menu) {
+    setTimeout(injectExtensionMenuButton, 500);
+    return;
+  }
+
+  const btn = document.createElement("div");
+  btn.id = "tabbit-plot-menu-btn";
+  btn.className = "list-group-item flex-container flexGap5 interactable";
+  btn.tabIndex = 0;
+  btn.title = `打开${EXT_DISPLAY_NAME}`;
+
+  btn.innerHTML = `
+    <div class="fa-solid fa-feather-pointed extensionsMenuExtensionButton"></div>
+    <span>📖 ${EXT_DISPLAY_NAME}</span>
+  `;
+
+  btn.addEventListener("click", handleMenuButtonClick);
+  menu.prepend(btn);
+
+  console.log(`[${EXT_ID}] 入口按钮已注入到魔法棒菜单`);
+}
+
+function handleMenuButtonClick(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  try {
+    if (!drawerUI) {
+      drawerUI = new DrawerUI({
+        extId: EXT_ID,
+        displayName: EXT_DISPLAY_NAME,
+        stateStore: stateStore,
+        settings: extension_settings[EXT_ID],
+        saveSettings: saveSettingsDebounced,
+      });
+    }
+    drawerUI.open();
+
+    // 关闭酒馆原本的扩展菜单弹层
+    const menu = document.getElementById("extensionsMenu");
+    if (menu) {
+      menu.style.display = "";
+      menu.classList.remove("shown");
+    }
+  } catch (error) {
+    console.error(`[${EXT_ID}] 打开界面失败:`, error);
+    alert(`[${EXT_DISPLAY_NAME}] 打开失败：\n${error.message}\n\n请把这段错误截图发给开发者。`);
+  }
+}
+
+// ============================================================
+// 启动
+// ============================================================
+jQuery(async () => {
+  try {
+    initSettings();
+    stateStore = new StateStore(EXT_ID);
+
+    injectExtensionMenuButton();
+
+    // 监听聊天切换：状态需要重新绑定到当前聊天
+    if (eventSource && event_types) {
+      eventSource.on(event_types.CHAT_CHANGED, () => {
+        if (stateStore) stateStore.onChatChanged();
+        if (drawerUI) drawerUI.onChatChanged();
+      });
+    }
+
+    console.log(`[${EXT_ID}] 阶段 1 加载完成`);
+  } catch (error) {
+    console.error(`[${EXT_ID}] 初始化失败:`, error);
+  }
+});
+
