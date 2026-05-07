@@ -1,12 +1,6 @@
 // ============================================================
-// 剧情辅助器 · 阶段 1：UI 骨架版
-// ============================================================
-// 入口策略（双端统一）：
-//   魔法棒菜单（extensionsMenu）里加一项「📖 剧情辅助器」
-//   点击后打开抽屉式界面，包含三个 Tab：
-//     - 主线大纲（阶段 2 实现）
-//     - 剧情选项（阶段 3 实现）
-//     - 设置（阶段 4 实现）
+// 剧情辅助器 主入口
+// 修补包 2-A.1：包含修复 ① 关闭魔法棒菜单
 // ============================================================
 
 import { extension_settings } from "../../../extensions.js";
@@ -15,59 +9,52 @@ import { saveSettingsDebounced, eventSource, event_types } from "../../../../scr
 import { StateStore } from "./modules/state-store.js";
 import { DrawerUI } from "./modules/drawer-ui.js";
 
+// ============================================================
+// 常量
+// ============================================================
 const EXT_ID = "tabbit-plot-helper";
 const EXT_DISPLAY_NAME = "剧情辅助器";
 
-let stateStore = null;
-let drawerUI = null;
-
 // ============================================================
-// 默认设置（阶段 1 先放占位，后续阶段会扩充）
+// 默认设置（修补包 2-A.1 隔离声明：
+//   所有字段仅作用于本插件，存储于 extension_settings["tabbit-plot-helper"]，
+//   不读写酒馆主设置中的 world_info / preset 等任何字段）
 // ============================================================
 const DEFAULT_SETTINGS = {
   context: {
-    messageMode: "recent20",      // recent20 | recent50 | recent100 | all | custom
-    customRangeStart: 0,          // 自定义区间起始楼层
-    customRangeEnd: 0,            // 自定义区间结束楼层
+    messageMode: "recent20",
+    customRangeStart: 0,
+    customRangeEnd: 0,
     includeCharacterCard: true,
     includeUserPersona: true,
     includeWorldInfo: true,
-    extraWorldInfoBookNames: [],  // 用户在设置里勾选的额外世界书
-    disabledEntries: {},          // { bookName: [uid1, uid2, ...] } 用户手动禁用的条目
+    extraWorldInfoBookNames: [],   // 仅插件
+    disabledEntries: {},           // 仅插件
   },
   advanced: {
     midFakeVictory: false,
     themeImage: false,
   },
   api: {
-    mode: "follow",               // follow | independent
-    independent: {
-      url: "",
-      key: "",
-      model: "",
-    },
+    mode: "follow",
+    independent: { url: "", key: "", model: "" },
   },
   preset: {
-    mode: "follow",               // follow | custom
+    mode: "follow",
     customPresetName: "",
   },
 };
 
+// ============================================================
+// 全局变量
+// ============================================================
+let drawerUI = null;
+let stateStore = null;
 
 // ============================================================
-// 初始化设置（深合并，保证升级时不丢字段）
+// 工具：递归补全默认字段
 // ============================================================
-function initSettings() {
-  if (!extension_settings[EXT_ID]) {
-    extension_settings[EXT_ID] = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
-  } else {
-    deepMergeDefaults(extension_settings[EXT_ID], DEFAULT_SETTINGS);
-  }
-  saveSettingsDebounced();
-  return extension_settings[EXT_ID];
-}
-
-function deepMergeDefaults(target, defaults) {
+function mergeDefaults(target, defaults) {
   for (const key of Object.keys(defaults)) {
     if (target[key] === undefined || target[key] === null) {
       target[key] = JSON.parse(JSON.stringify(defaults[key]));
@@ -79,9 +66,21 @@ function deepMergeDefaults(target, defaults) {
       typeof target[key] === "object" &&
       !Array.isArray(target[key])
     ) {
-      deepMergeDefaults(target[key], defaults[key]);
+      mergeDefaults(target[key], defaults[key]);
     }
   }
+}
+
+// ============================================================
+// 初始化设置
+// ============================================================
+function initSettings() {
+  if (!extension_settings[EXT_ID]) {
+    extension_settings[EXT_ID] = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  } else {
+    mergeDefaults(extension_settings[EXT_ID], DEFAULT_SETTINGS);
+  }
+  saveSettingsDebounced();
 }
 
 // ============================================================
@@ -100,19 +99,20 @@ function injectExtensionMenuButton() {
   btn.id = "tabbit-plot-menu-btn";
   btn.className = "list-group-item flex-container flexGap5 interactable";
   btn.tabIndex = 0;
-  btn.title = `打开${EXT_DISPLAY_NAME}`;
-
+  btn.title = `打开 `;
   btn.innerHTML = `
     <div class="fa-solid fa-feather-pointed extensionsMenuExtensionButton"></div>
-    <span>📖 ${EXT_DISPLAY_NAME}</span>
+    <span>📖 </span>
   `;
 
   btn.addEventListener("click", handleMenuButtonClick);
   menu.prepend(btn);
-
-  console.log(`[${EXT_ID}] 入口按钮已注入到魔法棒菜单`);
+  console.log(`[] 入口按钮已注入到魔法棒菜单`);
 }
 
+// ============================================================
+// 菜单按钮点击处理（修补包 2-A.1：修复 ①）
+// ============================================================
 function handleMenuButtonClick(e) {
   e.preventDefault();
   e.stopPropagation();
@@ -125,12 +125,9 @@ function handleMenuButtonClick(e) {
       "#mobile-tools-menu, .options-content"
     );
     wandMenus.forEach(menu => {
-      // 酒馆常见的关闭方式
       menu.style.display = "none";
       menu.classList.remove("shown", "open", "show", "active");
     });
-
-    // 部分主题用 body 上的 class 控制菜单
     document.body.classList.remove("wand-open", "menu-open");
   } catch (err) {
     console.warn(`[] 关闭魔法棒菜单失败（不影响功能）:`, err);
@@ -152,33 +149,59 @@ function handleMenuButtonClick(e) {
     console.error(`[] 打开界面失败:`, error);
     alert(`[] 打开失败：
 
-
 请把这段错误截图发给开发者。`);
   }
 }
 
+// ============================================================
+// 修复菜单显示状态（防止下次打开魔法棒时菜单仍是 display:none）
+// ============================================================
+function bindMenuShowFix() {
+  // 监听魔法棒触发器，只要点了魔法棒就还原菜单显示
+  const triggers = document.querySelectorAll(
+    "#extensionsMenuButton, #leftSendForm .menu_button, " +
+    "#extensionsMenuButton i, .extensionsMenuButton"
+  );
+  triggers.forEach(t => {
+    t.addEventListener("click", () => {
+      // 异步执行，避免与酒馆自身打开逻辑冲突
+      setTimeout(() => {
+        const menu = document.getElementById("extensionsMenu");
+        if (menu && menu.style.display === "none") {
+          menu.style.display = "";
+        }
+      }, 0);
+    });
+  });
+}
 
 // ============================================================
 // 启动
 // ============================================================
 jQuery(async () => {
+  console.log(`[] 启动中...`);
+
+  initSettings();
+  stateStore = new StateStore(EXT_ID);
+
+  // 注入入口按钮
+  injectExtensionMenuButton();
+
+  // 修复菜单显示状态
+  setTimeout(bindMenuShowFix, 1000);
+
+  // 监听聊天切换
   try {
-    initSettings();
-    stateStore = new StateStore(EXT_ID);
-
-    injectExtensionMenuButton();
-
-    // 监听聊天切换：状态需要重新绑定到当前聊天
     if (eventSource && event_types) {
       eventSource.on(event_types.CHAT_CHANGED, () => {
         if (stateStore) stateStore.onChatChanged();
         if (drawerUI) drawerUI.onChatChanged();
       });
     }
-
-    console.log(`[${EXT_ID}] 阶段 1 加载完成`);
-  } catch (error) {
-    console.error(`[${EXT_ID}] 初始化失败:`, error);
+  } catch (e) {
+    console.warn(`[] 事件监听绑定失败:`, e);
   }
+
+  console.log(`[] 启动完成`);
 });
 
